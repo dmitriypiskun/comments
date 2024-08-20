@@ -1,20 +1,27 @@
 import { useReducer, useState } from "react";
 import styles from "./create-comment-form.module.css";
 import { Button } from "../button/button";
-import { validateEmail } from "../../utils/validation";
 import { InputField } from "../input-field/input-field";
 import { Textarea } from "../textarea/textarea";
 import { Markup } from "interweave";
+import { CreateCommentData } from "../../comment.datasource";
+import validator from "validator";
+import { validateText } from "../../utils/validate";
+import {
+  BoldOutlined,
+  BorderlessTableOutlined,
+  EditOutlined,
+  EyeOutlined,
+  ItalicOutlined,
+  LinkOutlined,
+} from "@ant-design/icons";
 
-export interface CommentForm {
+export interface CommentFormState {
   username?: string;
   email?: string;
   text?: string;
   captcha?: string;
   commentId?: string;
-}
-
-export interface CommentFormState extends CommentForm {
   isValidEmail?: boolean;
   isValidUsername?: boolean;
   isValidText?: boolean;
@@ -57,10 +64,14 @@ const useCommentFormReducer = (initState?: CommentFormState) =>
           return {
             ...state,
             email: action.value,
-            isValidEmail: validateEmail(action.value),
+            isValidEmail: validator.isEmail(action.value),
           };
         case "changeText":
-          return { ...state, text: action.value, isValidText: true };
+          return {
+            ...state,
+            text: action.value,
+            isValidText: validateText(action.value),
+          };
         case "changeCaptcha":
           return { ...state, captcha: action.value };
         default:
@@ -72,7 +83,7 @@ const useCommentFormReducer = (initState?: CommentFormState) =>
       ({
         username: data?.username,
         email: data?.email,
-        text: data?.text,
+        text: data?.text || "",
         captcha: data?.captcha,
         commentId: data?.commentId,
         isValidEmail: data?.isValidEmail || true,
@@ -85,7 +96,7 @@ export interface CreateCommentFormProps {
   username?: string;
   email?: string;
   commentId?: string;
-  onCreate: (data: CommentForm) => Promise<void> | void;
+  onCreate: (data: CreateCommentData) => Promise<void> | void;
   onClose: () => Promise<void> | void;
 }
 
@@ -103,17 +114,28 @@ export const CreateCommentForm: React.FC<CreateCommentFormProps> = ({
     commentId,
   });
 
-  const handleChangeText = (value: string) => {
-    dispatch({ type: "changeText", value });
-  };
-
   const handleCreateComment = () => {
-    if (!form.isValidUsername || !form.isValidEmail || !form.isValidText) {
+    if (
+      !(
+        form.email &&
+        form.isValidEmail &&
+        form.username &&
+        form.isValidUsername &&
+        form.text &&
+        form.isValidText
+      )
+    ) {
       alert("The fields are filled in incorrectly");
       return;
     }
 
-    onCreate(form);
+    onCreate({
+      email: form.email,
+      username: form.username,
+      text: form.text,
+      commentId: form.commentId,
+      captcha: form.captcha,
+    });
   };
 
   return (
@@ -135,32 +157,83 @@ export const CreateCommentForm: React.FC<CreateCommentFormProps> = ({
         onChange={(value) => dispatch({ type: "changeEmail", value })}
       />
 
-      {isPreview ? (
-        <div className={styles["preview-container"]}>
-          <strong>Preview comment</strong>
-          <Markup content={form.text} />
+      <div className={styles["wrapper-textarea"]}>
+        <div className={styles["textarea-action"]}>
+          {!isPreview && (
+            <div className={styles["tags-container"]}>
+              <BoldOutlined
+                className={styles["icon-button"]}
+                onClick={() =>
+                  dispatch({
+                    type: "changeText",
+                    value: form.text + "<strong></strong>",
+                  })
+                }
+              />
+              <ItalicOutlined
+                className={styles["icon-button"]}
+                onClick={() =>
+                  dispatch({
+                    type: "changeText",
+                    value: form.text + "<i></i>",
+                  })
+                }
+              />
+              <BorderlessTableOutlined
+                className={styles["icon-button"]}
+                onClick={() =>
+                  dispatch({
+                    type: "changeText",
+                    value: form.text + "<code></code>",
+                  })
+                }
+              />
+              <LinkOutlined
+                className={styles["icon-button"]}
+                onClick={() =>
+                  dispatch({
+                    type: "changeText",
+                    value: form.text + "<a href=”” title=””></a>",
+                  })
+                }
+              />
+            </div>
+          )}
+
+          <div className={styles["wrapper-preview"]}>
+            {isPreview ? (
+              <EditOutlined
+                className={styles["icon-button"]}
+                onClick={() => setIsPreview((value) => !value)}
+              />
+            ) : (
+              form.text && (
+                <EyeOutlined
+                  className={styles["icon-button"]}
+                  onClick={() => setIsPreview((value) => !value)}
+                />
+              )
+            )}
+          </div>
         </div>
-      ) : (
-        <Textarea
-          label="Comment"
-          placeholder="Input comment"
-          value={form.text}
-          isErrored={!form.isValidText}
-          onChange={handleChangeText}
-        />
-      )}
+
+        {isPreview ? (
+          <div className={styles["preview-container"]}>
+            <Markup content={form.text} />
+          </div>
+        ) : (
+          <Textarea
+            placeholder="Input comment"
+            value={form.text}
+            isErrored={!form.isValidText}
+            onChange={(value) => dispatch({ type: "changeText", value })}
+          />
+        )}
+      </div>
 
       <div className={styles["action-container"]}>
-        <Button
-          isDisabled={!form.text}
-          title={isPreview ? "Edit" : "Preview"}
-          onClick={() => setIsPreview((value) => !value)}
-        />
-
-        <div className={styles["actions"]}>
-          <Button title="Create" onClick={handleCreateComment} />
-          <Button title="Close" onClick={onClose} />
-        </div>
+        <Button title="Create" onClick={handleCreateComment} />
+        <Button title="Close" onClick={onClose} />
       </div>
     </div>
   );

@@ -1,41 +1,31 @@
 import styles from "./app.module.css";
 import { CommentItem, Comment } from "./components/comment-item/comment-item";
-import { mockData } from "./mock-data";
 import avatar from "./assets/default_avatar.png";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "./components/button/button";
-import {
-  CreateCommentForm,
-  CommentFormState,
-} from "./components/create-comment-form/create-comment-form";
-import { PlusOutlined } from "@ant-design/icons";
+import { CreateCommentForm } from "./components/create-comment-form/create-comment-form";
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { Modal } from "./components/modal/modal";
-
-interface DataType {
-  id: string;
-  parentId: string | null;
-  authorId: string;
-  text: string;
-  createdAt: string;
-  children?: DataType[];
-  author: {
-    id: string;
-    username: string;
-    email: string;
-    createdAt: string;
-  };
-}
+import {
+  CommentData,
+  CreateCommentData,
+  useCreateComment,
+  useGetComments,
+} from "./comment.datasource";
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [commentId, setCommentId] = useState<string>();
+
+  const { comments, isLoading, error } = useGetComments();
+  const { createComment } = useCreateComment();
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "unset";
   }, [isOpen]);
 
   const data = useMemo(() => {
-    const convert = (data: DataType[]): Comment[] => {
+    const convert = (data: CommentData[]): Comment[] => {
       return data.map(
         (item): Comment => ({
           id: item.id,
@@ -47,11 +37,23 @@ function App() {
       );
     };
 
-    return convert(mockData);
-  }, []);
+    return comments?.comments ? convert(comments.comments) : [];
+  }, [comments]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const createComment = (_data: CommentFormState) => {};
+  const handleCreateComment = async (data: CreateCommentData) => {
+    if (!data.username || !data.email || !data.text) {
+      return;
+    }
+
+    const result = await createComment({
+      username: data.username,
+      commentId: data.commentId,
+      email: data.email,
+      text: data.text,
+    });
+    console.log("Saved comment: ", result);
+    handleCloseModal();
+  };
 
   const handleOpenModal = (id?: string) => {
     if (id) {
@@ -65,6 +67,24 @@ function App() {
     setIsOpen(false);
     setCommentId("");
   };
+
+  if (isLoading) {
+    return (
+      <div className={styles["container"]}>
+        <div className={styles["loader-wrapper"]}>
+          <LoadingOutlined style={{ height: "48px", width: "48px" }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles["container"]}>
+        <pre>{error.message}</pre>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -93,7 +113,7 @@ function App() {
         <Modal title="Adding comment" onClose={handleCloseModal}>
           <CreateCommentForm
             commentId={commentId}
-            onCreate={createComment}
+            onCreate={handleCreateComment}
             onClose={handleCloseModal}
           />
         </Modal>
