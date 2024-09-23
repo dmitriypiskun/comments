@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Comment } from './comment.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
 export type CreateComment = Omit<Comment, 'id' | 'createdAt'>;
 
@@ -26,6 +26,10 @@ export class CommentRepository {
 
     if (params?.parentId) {
       query.parentId = params.parentId;
+    }
+
+    if (params?.parentId === null) {
+      query.parentId = IsNull();
     }
 
     return this.datasource.find({

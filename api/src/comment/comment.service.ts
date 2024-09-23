@@ -20,7 +20,7 @@ export class CommentService {
   ) {}
 
   async getList(): Promise<CommentModel[]> {
-    const comments = await this.commentRepository.getList();
+    const comments = await this.commentRepository.getList({ parentId: null });
     return comments.map((item) => new CommentModel(item));
   }
 
